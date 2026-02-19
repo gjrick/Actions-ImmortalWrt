@@ -43,8 +43,7 @@ jobs:
       - name: 自動校對配置檔 (Make defconfig)
         working-directory: openwrt
         run: |
-          # 這是最關鍵的一步：它會吸收你的 .config，並自動填補任何因源碼更新而產生的新選項，阻止互動視窗彈出
-          make defconfig
+          yes "" | make defconfig
 
       - name: 下載編譯所需的依賴包 (Download dl)
         working-directory: openwrt
@@ -53,8 +52,8 @@ jobs:
       - name: 開始編譯 (Compile Firmware)
         working-directory: openwrt
         run: |
-          # 預設使用多線程全速編譯，若失敗則退回單線程並輸出詳細日誌
-          make -j$(nproc) || make -j1 V=s
+          # 遇到任何提問，全部自動輸入 Enter (預設值)
+          yes "" | make -j$(nproc) || yes "" | make -j1 V=s
 
       - name: 整理編譯產出物 (Organize files)
         working-directory: openwrt
