@@ -1,9 +1,9 @@
-name: 🚀 依據 .config 自動編譯 ImmortalWrt
+name: 🚀 依據 Seed 自動編譯 ImmortalWrt 24.10
 
 on:
   push:
     paths:
-      - '.config'  # 只要你上傳或修改 .config，就會自動觸發編譯
+      - 'my_config.seed'  # 監聽對象改為種子檔，只要上傳或修改就會觸發
   workflow_dispatch:
 
 env:
@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    name: 🚀 讀取 .config 並編譯
+    name: 🚀 讀取 Seed 並編譯
     steps:
       - name: 檢出目前倉庫 (Checkout current repo)
         uses: actions/checkout@v4
@@ -26,6 +26,18 @@ jobs:
           sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
           sudo timedatectl set-timezone "Asia/Taipei"
 
+      - name: 釋放硬碟空間 (Maximize build space)
+        # 這是避免編譯「全家桶」時硬碟被塞爆的神器
+        uses: rmacklin/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
       - name: 克隆 ImmortalWrt 原始碼 (Clone source code)
         run: git clone -b $REPO_BRANCH --single-branch $REPO_URL openwrt
 
@@ -35,15 +47,17 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 載入你的 .config (Load user .config)
+      - name: 載入並展開配置檔 (Load and Expand config)
         run: |
-          [ -f .config ] && cp .config openwrt/.config
+          # 讀取你的種子檔，並複製過去當作基底 (.config)
+          [ -f my_config.seed ] && cp my_config.seed openwrt/.config
           [ -f diy.sh ] && cp diy.sh openwrt/diy.sh && cd openwrt && chmod +x diy.sh && ./diy.sh || true
 
       - name: 自動校對配置檔 (Make defconfig)
         working-directory: openwrt
         run: |
-          yes "" | make defconfig
+          # 將 seed 檔展開成完整的 .config，並自動用官方預設值補齊缺失的選項
+          make defconfig
 
       - name: 下載編譯所需的依賴包 (Download dl)
         working-directory: openwrt
@@ -52,8 +66,8 @@ jobs:
       - name: 開始編譯 (Compile Firmware)
         working-directory: openwrt
         run: |
-          # 遇到任何提問，全部自動輸入 Enter (預設值)
-          yes "" | make -j$(nproc) || yes "" | make -j1 V=s
+          # 拿掉 yes ""，回歸正常的編譯邏輯
+          make -j$(nproc) || make -j1 V=s
 
       - name: 整理編譯產出物 (Organize files)
         working-directory: openwrt
