@@ -44,6 +44,11 @@ jobs:
       - name: 更新並安裝 Feeds (Update & Install feeds)
         working-directory: openwrt
         run: |
+          # 寫入 kenzok8 的自定義軟體源
+          echo "src-git small https://github.com/kenzok8/small.git" >> feeds.conf.default
+          echo "src-git kenzo https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
+          
+          # 更新並安裝所有套件
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
