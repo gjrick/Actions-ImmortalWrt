@@ -28,7 +28,7 @@ jobs:
 
       - name: 釋放硬碟空間 (Maximize build space)
         # 這是避免編譯「全家桶」時硬碟被塞爆的神器
-        uses: rmacklin/maximize-build-space@master
+        uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 512
           swap-size-mb: 1024
