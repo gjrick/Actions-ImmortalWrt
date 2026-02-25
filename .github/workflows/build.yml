@@ -9,7 +9,7 @@ on:
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: openwrt-24.10
-  CONFIG_FILE: .config
+  CONFIG_FILE: seed.config
   DIY_SH: diy.sh
 
 jobs:
