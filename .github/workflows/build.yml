@@ -3,7 +3,7 @@ name: 🚀 依據 Seed 自動編譯 ImmortalWrt 24.10
 on:
   push:
     paths:
-      - 'my_config.seed'  # 監聽對象改為種子檔，只要上傳或修改就會觸發
+      - 'my_config.seed'
   workflow_dispatch:
 
 env:
@@ -27,7 +27,6 @@ jobs:
           sudo timedatectl set-timezone "Asia/Taipei"
 
       - name: 釋放硬碟空間 (Maximize build space)
-        # 這是避免編譯「全家桶」時硬碟被塞爆的神器
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 512
@@ -44,7 +43,6 @@ jobs:
       - name: 更新並安裝 Feeds (Update & Install feeds)
         working-directory: openwrt
         run: |
-          # 確保 kenzok8 源被正確寫入！
           echo "src-git small https://github.com/kenzok8/small.git" >> feeds.conf.default
           echo "src-git kenzo https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
           ./scripts/feeds update -a
@@ -54,11 +52,7 @@ jobs:
         run: |
           [ -f my_config.seed ] && cp my_config.seed openwrt/.config
           cd openwrt
-          
-          # 🚨 致命錯誤修復：強制清除 Windows 換行符號 (\r)，拯救你的設定檔！
           sed -i 's/\r$//' .config
-          
-          # 執行自定義腳本
           [ -f ../diy.sh ] && cp ../diy.sh diy.sh && chmod +x diy.sh && ./diy.sh || true
 
       - name: 自動校對配置檔 (Make defconfig)
@@ -67,7 +61,6 @@ jobs:
           make defconfig
 
       - name: 上傳最終 .config 供檢查 (Upload Final Config)
-        # 這是我們的照妖鏡，編譯前先把它傳上來，我們就能確認套件有沒有被吃掉
         uses: actions/upload-artifact@v4
         with:
           name: Final_Config
@@ -84,7 +77,6 @@ jobs:
       - name: 開始編譯 (Compile Firmware)
         working-directory: openwrt
         run: |
-          # 拿掉 yes ""，回歸正常的編譯邏輯
           make -j$(nproc) || make -j1 V=s
 
       - name: 整理編譯產出物 (Organize files)
