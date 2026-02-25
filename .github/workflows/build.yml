@@ -3,7 +3,9 @@ name: 🚀 雲端編譯 ImmortalWrt 24.10 (Direct Config)
 on:
   push:
     paths:
-      - '.config'
+      - 'seed.config'
+      - '.github/workflows/build.yml'
+      - 'diy.sh'
   workflow_dispatch:
 
 env:
