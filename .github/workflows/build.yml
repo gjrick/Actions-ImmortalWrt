@@ -44,29 +44,42 @@ jobs:
       - name: 更新並安裝 Feeds (Update & Install feeds)
         working-directory: openwrt
         run: |
-          # 寫入 kenzok8 的自定義軟體源
+          # 確保 kenzok8 源被正確寫入！
           echo "src-git small https://github.com/kenzok8/small.git" >> feeds.conf.default
           echo "src-git kenzo https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
-          
-          # 更新並安裝所有套件
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: 載入並展開配置檔 (Load and Expand config)
         run: |
-          # 讀取你的種子檔，並複製過去當作基底 (.config)
           [ -f my_config.seed ] && cp my_config.seed openwrt/.config
-          [ -f diy.sh ] && cp diy.sh openwrt/diy.sh && cd openwrt && chmod +x diy.sh && ./diy.sh || true
+          cd openwrt
+          
+          # 🚨 致命錯誤修復：強制清除 Windows 換行符號 (\r)，拯救你的設定檔！
+          sed -i 's/\r$//' .config
+          
+          # 執行自定義腳本
+          [ -f ../diy.sh ] && cp ../diy.sh diy.sh && chmod +x diy.sh && ./diy.sh || true
 
       - name: 自動校對配置檔 (Make defconfig)
         working-directory: openwrt
         run: |
-          # 將 seed 檔展開成完整的 .config，並自動用官方預設值補齊缺失的選項
           make defconfig
 
-      - name: 下載編譯所需的依賴包 (Download dl)
+      - name: 上傳最終 .config 供檢查 (Upload Final Config)
+        # 這是我們的照妖鏡，編譯前先把它傳上來，我們就能確認套件有沒有被吃掉
+        uses: actions/upload-artifact@v4
+        with:
+          name: Final_Config
+          path: openwrt/.config
+
+      - name: 預先下載所有套件與源碼 (Pre-download all packages)
         working-directory: openwrt
-        run: make download -j8
+        run: |
+          make download -j8 V=s
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+          make download -j8 V=s
 
       - name: 開始編譯 (Compile Firmware)
         working-directory: openwrt
