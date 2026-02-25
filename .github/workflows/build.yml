@@ -1,19 +1,20 @@
-name: 🚀 依據 Seed 自動編譯 ImmortalWrt 24.10
+name: 🚀 雲端編譯 ImmortalWrt 24.10 (Direct Config)
 
 on:
   push:
     paths:
-      - 'my_config.seed'
+      - '.config'
   workflow_dispatch:
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: openwrt-24.10
+  CONFIG_FILE: .config
+  DIY_SH: diy.sh
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    name: 🚀 讀取 Seed 並編譯
     steps:
       - name: 檢出目前倉庫 (Checkout current repo)
         uses: actions/checkout@v4
@@ -29,7 +30,7 @@ jobs:
       - name: 釋放硬碟空間 (Maximize build space)
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 512
+          root-reserve-mb: 2048
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
@@ -43,28 +44,31 @@ jobs:
       - name: 更新並安裝 Feeds (Update & Install feeds)
         working-directory: openwrt
         run: |
-          echo "src-git small https://github.com/kenzok8/small.git" >> feeds.conf.default
-          echo "src-git kenzo https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
+          # 使用倉庫中的 feeds.conf.default 覆蓋源碼中的預設值
+          [ -f ../feeds.conf.default ] && cp ../feeds.conf.default feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 載入並展開配置檔 (Load and Expand config)
+      - name: 載入自定義配置 (.config)
         run: |
-          [ -f my_config.seed ] && cp my_config.seed openwrt/.config
+          # 直接將根目錄的 .config 覆蓋到 openwrt 目錄
+          if [ -f $CONFIG_FILE ]; then
+            cp $CONFIG_FILE openwrt/.config
+            echo "✅ 已載入自定義 .config"
+          else
+            echo "❌ 找不到 .config 檔案，請確認檔案名稱是否正確！"
+            exit 1
+          fi
+          
           cd openwrt
+          # 修正 Windows 換行符號問題 (CRLF to LF)
           sed -i 's/\r$//' .config
-          [ -f ../diy.sh ] && cp ../diy.sh diy.sh && chmod +x diy.sh && ./diy.sh || true
-
-      - name: 自動校對配置檔 (Make defconfig)
-        working-directory: openwrt
-        run: |
+          
+          # 執行自定義腳本 (如修改 IP、主機名等)
+          [ -f ../$DIY_SH ] && cp ../$DIY_SH $DIY_SH && chmod +x $DIY_SH && ./$DIY_SH || true
+          
+          # 直接進行擴展，確保選中的套件相依性正確 (不使用 seed 模式)
           make defconfig
-
-      - name: 上傳最終 .config 供檢查 (Upload Final Config)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Final_Config
-          path: openwrt/.config
 
       - name: 預先下載所有套件與源碼 (Pre-download all packages)
         working-directory: openwrt
@@ -77,14 +81,19 @@ jobs:
       - name: 開始編譯 (Compile Firmware)
         working-directory: openwrt
         run: |
+          # 使用多核心編譯，失敗則切換單核心輸出詳細日誌
           make -j$(nproc) || make -j1 V=s
 
       - name: 整理編譯產出物 (Organize files)
         working-directory: openwrt
-        run: rm -rf bin/targets/*/*/packages
+        run: |
+          mkdir -p bin/targets/final
+          cp .config bin/targets/final/config.buildinfo
+          # 僅保留韌體檔案，移除 packages 資料夾以節省空間
+          rm -rf bin/targets/*/*/packages
 
       - name: 上傳韌體到 Artifacts (Upload Firmware)
         uses: actions/upload-artifact@v4
         with:
-          name: ImmortalWrt_Firmware_${{ github.run_id }}
+          name: ImmortalWrt_24.10_N100_${{ github.run_id }}
           path: openwrt/bin/targets/
