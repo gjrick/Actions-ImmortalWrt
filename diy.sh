@@ -2,4 +2,5 @@
 # Please enter the custom command below (usually used to install third-party plugins) (can be left blank)
 # git clone --depth=1 https://github.com/EOYOHOO/UA2F.git package/UA2F
 # git clone --depth=1 https://github.com/EOYOHOO/rkp-ipid.git package/rkp-ipid
+echo "# CONFIG_RUST_DOWNLOAD_CI_LLVM is not set" >> .config
 sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/Makefile
