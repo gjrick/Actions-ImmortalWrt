@@ -15,3 +15,14 @@ echo "# CONFIG_RUST_DOWNLOAD_CI_LLVM is not set" >> .config
 
 # (可選) 預防萬一，連帶把 Rust 的 nightly/beta 頻道偏好也清一下，確保使用穩定版流程
 sed -i '/CONFIG_RUST_USE_NIGHTLY/d' .config
+
+# 建立自動修正 OpenSSL 引擎的腳本 (針對 Built-in AFALG 優化)
+mkdir -p files/etc/uci-defaults
+cat <<EOF > files/etc/uci-defaults/99-fix-openssl
+#!/bin/sh
+if [ -f "/etc/ssl/openssl.cnf" ]; then
+    sed -i 's/^engines = engines_sect/#engines = engines_sect/' /etc/ssl/openssl.cnf
+fi
+exit 0
+EOF
+chmod +x files/etc/uci-defaults/99-fix-openssl
